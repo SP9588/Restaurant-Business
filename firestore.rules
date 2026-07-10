@@ -1,0 +1,104 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function hasRole(role) {
+      return isVerified() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().data.role == role;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isVerified() && isOwner(userId);
+
+      match /favorites/{restaurantId} {
+        allow read: if isSignedIn() && isOwner(userId);
+        allow create: if isVerified() && isOwner(userId) && isValidId(restaurantId);
+        allow delete: if isSignedIn() && isOwner(userId);
+      }
+    }
+
+    match /drivers/{userId} {
+      allow read: if isSignedIn();
+      allow create, update: if isVerified() && isOwner(userId);
+    }
+
+    match /restaurants/{restaurantId} {
+      allow read: if true;
+      allow create: if isVerified(); 
+      allow update: if isVerified() && (isOwner(resource.data.ownerId) || hasRole('admin'));
+    }
+
+    match /restaurants/{restaurantId}/menu/{itemId} {
+      allow read: if true;
+      allow write: if isVerified() && (
+        exists(/databases/$(database)/documents/restaurants/$(restaurantId)) && 
+        (isOwner(get(/databases/$(database)/documents/restaurants/$(restaurantId)).data.ownerId) || hasRole('admin'))
+      );
+    }
+
+    match /orders/{orderId} {
+      allow read: if isSignedIn() && (
+        isOwner(resource.data.customerId) || 
+        (exists(/databases/$(database)/documents/restaurants/$(resource.data.restaurantId)) && 
+         isOwner(get(/databases/$(database)/documents/restaurants/$(resource.data.restaurantId)).data.ownerId)) ||
+        resource.data.driverId == request.auth.uid ||
+        hasRole('admin') ||
+        hasRole('cashier') ||
+        (resource.data.status == 'ready' && resource.data.driverId == null) // Available tasks
+      );
+      allow create: if isVerified();
+      allow update: if isVerified() && (
+        isOwner(resource.data.customerId) || 
+        (exists(/databases/$(database)/documents/restaurants/$(resource.data.restaurantId)) && 
+         isOwner(get(/databases/$(database)/documents/restaurants/$(resource.data.restaurantId)).data.ownerId)) ||
+        resource.data.driverId == request.auth.uid ||
+        (resource.data.status == 'ready' && incoming().driverId == request.auth.uid) || // Driver accepting
+        hasRole('admin') ||
+        hasRole('cashier')
+      );
+    }
+
+    match /earnings/{earningId} {
+      allow read: if isSignedIn() && resource.data.driverId == request.auth.uid;
+      allow create: if false; // System only
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow delete: if isSignedIn() && isOwner(resource.data.customerId);
+    }
+  }
+}

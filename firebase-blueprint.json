@@ -1,0 +1,166 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "System user profiles with role-based access",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["customer", "owner", "driver", "admin", "cashier"] },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "country": { "type": "string" },
+        "currency": { "type": "string" },
+        "profileImage": { "type": "string" },
+        "loyaltyPoints": { "type": "number" },
+        "referralCode": { "type": "string" },
+        "referredBy": { "type": "string" },
+        "isFirstOrderCompleted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "email", "role"]
+    },
+    "Restaurant": {
+      "title": "Restaurant",
+      "description": "Restaurant registration details and status",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "address": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "country": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "currency": { "type": "string" },
+        "logo": { "type": "string" },
+        "rating": { "type": "number" },
+        "reviewCount": { "type": "number" },
+        "status": { "type": "string", "enum": ["open", "closed"] },
+        "isVerified": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "name", "address", "city"]
+    },
+    "MenuItem": {
+      "title": "MenuItem",
+      "description": "Food and beverage items in a restaurant menu",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "category": { "type": "string" },
+        "image": { "type": "string" },
+        "available": { "type": "boolean" },
+        "customizations": { "type": "array" }
+      },
+      "required": ["restaurantId", "name", "price"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Order records and tracking data",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerId": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "driverId": { "type": "string" },
+        "items": { "type": "array" },
+        "status": { "type": "string", "enum": ["pending", "preparing", "ready", "delivery_started", "delivered", "cancelled"] },
+        "totalAmount": { "type": "number" },
+        "paymentStatus": { "type": "string", "enum": ["pending", "paid", "failed"] },
+        "deliveryAddress": { "type": "string" },
+        "preferredDeliveryTime": { "type": "string" },
+        "tracking": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["customerId", "restaurantId", "items", "totalAmount"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Customer reviews for orders and deliveries",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orderId": { "type": "string" },
+        "customerId": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "driverId": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["orderId", "customerId", "restaurantId", "rating"]
+    },
+    "Promotion": {
+      "title": "Promotion",
+      "description": "Marketing promotions and discount codes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string", "enum": ["percentage", "fixed", "bogo"] },
+        "value": { "type": "number" },
+        "minOrderValue": { "type": "number" },
+        "restaurantId": { "type": "string" },
+        "itemIds": { "type": "array" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["title", "type", "value", "startDate", "endDate", "isActive"]
+    },
+    "Favorite": {
+      "title": "Favorite",
+      "description": "User favorite restaurants",
+      "type": "object",
+      "properties": {
+        "restaurantId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["restaurantId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/users/{userId}/favorites/{restaurantId}": {
+      "schema": "Favorite",
+      "description": "User favorite restaurants"
+    },
+    "/restaurants/{restaurantId}": {
+      "schema": "Restaurant",
+      "description": "Restaurant data"
+    },
+    "/restaurants/{restaurantId}/menu/{itemId}": {
+      "schema": "MenuItem",
+      "description": "Restaurant menu items"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Order records"
+    },
+    "/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Reviews"
+    },
+    "/promotions/{promotionId}": {
+      "schema": "Promotion",
+      "description": "Global or restaurant-specific promotions"
+    }
+  }
+}

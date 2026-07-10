@@ -1,0 +1,6 @@
+{
+  "name": "GastroFast - Ultimate Restaurant & Delivery Ecosystem",
+  "description": "A comprehensive end-to-end platform for restaurant ordering, kitchen management, and real-time delivery tracking with multi-role support for customers, owners, drivers, admins, and cashiers.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["Real-time Tracking", "Kitchen Management", "Multi-role Dashboards", "Secure Payments"]
+}
