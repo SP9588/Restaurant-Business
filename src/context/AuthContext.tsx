@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { UserProfile, UserRole } from '../types';
 
@@ -27,52 +27,72 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
+    let unsubscribeProfile: (() => void) | null = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+        unsubscribeProfile = null;
+      }
+
+      if (currentUser) {
         try {
-          const profileDoc = await getDoc(doc(db, 'users', user.uid)).catch(err => {
-            handleFirestoreError(err, OperationType.GET, `users/${user.uid}`);
-            throw err;
-          });
-          if (profileDoc.exists()) {
-            const data = profileDoc.data();
-            // Migrate old users if needed
-            if (!data.referralCode) {
-              const referralCode = generateReferralCode();
-              await setDoc(doc(db, 'users', user.uid), { ...data, referralCode }, { merge: true });
-              setProfile({ ...data, referralCode } as UserProfile);
+          const userDocRef = doc(db, 'users', currentUser.uid);
+          
+          // Setup real-time listener for user profile
+          unsubscribeProfile = onSnapshot(userDocRef, async (profileSnap) => {
+            if (profileSnap.exists()) {
+              const data = profileSnap.data();
+              // Migrate old users if needed
+              if (!data.referralCode) {
+                const referralCode = generateReferralCode();
+                await setDoc(userDocRef, { referralCode }, { merge: true });
+                setProfile({ ...data, referralCode } as UserProfile);
+              } else {
+                setProfile(data as UserProfile);
+              }
+              setLoading(false);
             } else {
-              setProfile(data as UserProfile);
+              // Default profile for new users (authenticated via social login)
+              const newProfile: UserProfile = {
+                userId: currentUser.uid,
+                name: currentUser.displayName || 'New User',
+                email: currentUser.email || '',
+                role: 'customer',
+                loyaltyPoints: 0,
+                referralCode: generateReferralCode(),
+                isFirstOrderCompleted: false,
+                createdAt: new Date().toISOString(),
+              };
+              await setDoc(userDocRef, newProfile).catch(err => {
+                handleFirestoreError(err, OperationType.WRITE, `users/${currentUser.uid}`);
+                throw err;
+              });
+              setProfile(newProfile);
+              setLoading(false);
             }
-          } else {
-            // Default profile for new users (authenticated via social login)
-            const newProfile: UserProfile = {
-              userId: user.uid,
-              name: user.displayName || 'New User',
-              email: user.email || '',
-              role: 'customer',
-              loyaltyPoints: 0,
-              referralCode: generateReferralCode(),
-              isFirstOrderCompleted: false,
-              createdAt: new Date().toISOString(),
-            };
-            await setDoc(doc(db, 'users', user.uid), newProfile).catch(err => {
-              handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}`);
-              throw err;
-            });
-            setProfile(newProfile);
-          }
+          }, (err) => {
+            console.error("Profile sync error:", err);
+            setLoading(false);
+          });
         } catch (err) {
           console.error("Auth initialization error:", err);
+          setLoading(false);
         }
       } else {
         setProfile(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+      }
+    };
   }, []);
 
   const value = {

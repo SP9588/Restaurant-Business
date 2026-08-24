@@ -17,7 +17,8 @@ import {
   Check,
   QrCode,
   Download,
-  Truck
+  Truck,
+  Coins
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '../components/ui/button';
@@ -33,7 +34,7 @@ import RestaurantMap from '../components/RestaurantMap';
 export default function RestaurantDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { addItem, items: cartItems, total } = useCart();
+  const { addItem, items: cartItems, total, pointsToEarn } = useCart();
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -356,7 +357,7 @@ export default function RestaurantDetail() {
                   ))}
                 </div>
                 
-                <div className="space-y-3 pt-6 border-t border-white/10">
+                 <div className="space-y-3 pt-6 border-t border-white/10">
                   <div className="flex justify-between text-sm text-neutral-400">
                     <span>Subtotal</span>
                     <span>{restaurant.currency} {total.toFixed(2)}</span>
@@ -369,9 +370,21 @@ export default function RestaurantDetail() {
                     <span>Total</span>
                     <span className="text-clay">{restaurant.currency} {(total + 2.5).toFixed(2)}</span>
                   </div>
+                  {pointsToEarn > 0 && (
+                    <div className="flex justify-between items-center bg-blue-950/40 p-3 rounded-2xl border border-blue-500/20 text-xs text-blue-200 mt-2">
+                      <span className="flex items-center gap-1.5 font-bold">
+                        <Coins className="w-4 h-4 text-blue-400 animate-pulse" />
+                        Points to Earn:
+                      </span>
+                      <span className="font-mono font-black">+{pointsToEarn} PTS</span>
+                    </div>
+                  )}
                 </div>
 
-                <Button className="w-full h-14 rounded-full bg-clay text-white hover:bg-clay/90 font-black text-lg uppercase tracking-tight shadow-xl shadow-clay/20 mt-4">
+                <Button 
+                  onClick={() => navigate('/orders')}
+                  className="w-full h-14 rounded-full bg-clay text-white hover:bg-clay/90 font-black text-lg uppercase tracking-tight shadow-xl shadow-clay/20 mt-4"
+                >
                   CHECKOUT NOW
                 </Button>
                 
